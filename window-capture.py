@@ -52,8 +52,13 @@ def script_properties():
         "Regex for Title to Match (e.g. .*video call",
         obs.OBS_TEXT_DEFAULT,
     )
+    obs.obs_properties_add_button(props, "button", "Refresh", on_press_button)
 
     return props
+
+
+def on_press_button(props, prop):
+    capture_window()
 
 
 def script_update(settings):
@@ -68,20 +73,6 @@ def script_update(settings):
     # config_class = obs.obs_data_get_string(settings, "class")
 
 
-# def enum_windows():
-#     def callback(handle, data):
-#         tid, pid = win32process.GetWindowThreadProcessId(handle)
-#         windows.append({
-#           "title": win32gui.GetWindowText(handle),
-#           "class": win32gui.GetClassName(handle),
-#           "executable": os.path.basename(psutil.Process(pid).exe())
-#         })
-
-#     windows = []
-#     win32gui.EnumWindows(callback, None)
-#     return windows
-
-
 def match_window(executable: str, re_title: str):
     def is_match(window: window_control.Window):
         return (
@@ -92,19 +83,18 @@ def match_window(executable: str, re_title: str):
     print(f"Matching executable {executable} and window title: {re_title}")
     for window in window_control.create_windowlist():
         if is_match(window):
-            print(f"Found Matching Window: {window.title}")
             return window
-        else:
-            print(f"No Matching Window: {window.title}")
     return None
 
 
 def on_event(event):
-    if event != obs.OBS_FRONTEND_EVENT_SCENE_CHANGED:
-        return
+    if event == obs.OBS_FRONTEND_EVENT_SCENE_CHANGED:
+        capture_window()
 
+
+def capture_window():
     global config_source_name, config_executable, config_window_match
-    print("Scene change!")
+    print("*** Capturing Window ***")
 
     def get_sources():
         current_scene = obs.obs_frontend_get_current_scene()
@@ -132,20 +122,17 @@ def on_event(event):
             new_window = match_window(config_executable, config_window_match)
             if new_window is not None:
                 print(f"Found window: {new_window.title}")
-                old_window_text = obs.obs_data_get_string(
+                old_window_text: str = obs.obs_data_get_string(
                     cur_settings, "window"
                 )
-                new_window_text = "%s:%s:%s" % (
-                    new_window.title,
-                    new_window.wm_class,
-                    new_window.executable_path,
+                # if old_window_text != new_window.title:
+                print(f"{old_window_text} -> {new_window.title}")
+                obs.obs_data_set_string(
+                    cur_settings, "window", new_window.title
                 )
-                if old_window_text != new_window_text:
-                    print(f"Update source window to {new_window_text}")
-                    obs.obs_data_set_string(
-                        cur_settings, "window", new_window_text
-                    )
-                    obs.obs_source_update(cur_source, cur_settings)
+                obs.obs_source_update(cur_source, cur_settings)
+                obs.obs_data_release(cur_settings)
+                return
 
             obs.obs_data_release(cur_settings)
 
