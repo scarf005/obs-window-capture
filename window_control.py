@@ -5,6 +5,8 @@ from pathlib import Path
 from subprocess import run
 from typing import List
 
+import psutil
+
 int16 = lambda x: int(x, 16)
 
 
@@ -20,6 +22,10 @@ class Window:
         self.id = int16(self.id)
         self.desktopNum = int(self.desktopNum)
         self.pid = int(self.pid)
+
+    @property
+    def executable_path(self) -> str:
+        return psutil.Process(self.pid).exe()
 
 
 @dataclass
@@ -60,4 +66,5 @@ if __name__ == "__main__":
     window_list = create_windowlist()
     print(window_list)
     for window in window_list:
-        print(window)
+        # print(window)
+        print(window.executable_path)
