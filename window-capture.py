@@ -1,14 +1,70 @@
 import os
 import re
+from dataclasses import dataclass
+from pathlib import Path
+from subprocess import PIPE, run
+from textwrap import shorten
+from typing import List
+
 import obspython as obs
-import psutil
+
+int16 = lambda x: int(x, 16)
+
+
+@dataclass
+class Window:
+    id: int
+    desktopNum: int
+    pid: int
+    wm_class: str
+    title: str
+
+    def __post_init__(self):
+        self.id = int16(self.id)
+        self.desktopNum = int(self.desktopNum)
+        self.pid = int(self.pid)
+
+
+@dataclass
+class WindowList:
+    _list: List[Window]
+
+    def __iter__(self):
+        return iter(self._list)
+
+    def __str__(self) -> str:
+        def truncate(column: str):
+            return column[:7] + "…" if len(column) > 8 else column
+
+        def format_Window(w: Window) -> str:
+            return (
+                f"{w.id:10} |{w.desktopNum:>3}  |{w.pid:>6} |"
+                f" {truncate(w.wm_class.split('.')[1]):<8} | {w.title}"
+            )
+
+        return "Window ID  | Num |  PID  | WM_CLASS | Title\n" + "\n".join(
+            [format_Window(w) for w in self._list]
+        )
+
+
+def create_windowlist() -> WindowList:
+    def create_window(line: str) -> Window:
+        return Window(*re.split(r"\s+", line, maxsplit=4))
+
+    capture = run(["wmctrl", "-l", "-p", "-u", "-x"], stdout=PIPE)
+    lines = capture.stdout.decode().splitlines()
+    return WindowList([create_window(line) for line in lines])
+
+
 # import win32gui
 # import win32process
 
 # ------------------------------------------------------------
 
+
 def script_description():
     return "Window capture for dynamic window titles"
+
 
 def script_properties():
     """
@@ -16,9 +72,13 @@ def script_properties():
     properties are used to define how to show settings properties to a user.
     """
     props = obs.obs_properties_create()
-    p = obs.obs_properties_add_list(props, "source", "Window Capture Source",
-                                    obs.OBS_COMBO_TYPE_LIST,
-                                    obs.OBS_COMBO_FORMAT_STRING)
+    p = obs.obs_properties_add_list(
+        props,
+        "source",
+        "Window Capture Source",
+        obs.OBS_COMBO_TYPE_LIST,
+        obs.OBS_COMBO_FORMAT_STRING,
+    )
 
     sources = obs.obs_enum_sources()
     if sources is not None:
@@ -30,8 +90,18 @@ def script_properties():
 
         obs.source_list_release(sources)
 
-    obs.obs_properties_add_text(props, "executable", "Executable to Match (e.g. whatsapp.exe)", obs.OBS_TEXT_DEFAULT)
-    obs.obs_properties_add_text(props, "window_match", "Regex for Title to Match (e.g. .*video call", obs.OBS_TEXT_DEFAULT)
+    obs.obs_properties_add_text(
+        props,
+        "executable",
+        "Executable to Match (e.g. whatsapp.exe)",
+        obs.OBS_TEXT_DEFAULT,
+    )
+    obs.obs_properties_add_text(
+        props,
+        "window_match",
+        "Regex for Title to Match (e.g. .*video call",
+        obs.OBS_TEXT_DEFAULT,
+    )
 
     return props
 
@@ -45,29 +115,37 @@ def script_update(settings):
     config_source_name = obs.obs_data_get_string(settings, "source")
     config_executable = obs.obs_data_get_string(settings, "executable")
     config_window_match = obs.obs_data_get_string(settings, "window_match")
-    #config_class = obs.obs_data_get_string(settings, "class")
+    # config_class = obs.obs_data_get_string(settings, "class")
 
-def enum_windows():
-    def callback(handle, data):
-        tid, pid = win32process.GetWindowThreadProcessId(handle)
-        windows.append({
-          "title": win32gui.GetWindowText(handle),
-          "class": win32gui.GetClassName(handle),
-          "executable": os.path.basename(psutil.Process(pid).exe())
-        })
 
-    windows = []
-    win32gui.EnumWindows(callback, None)
-    return windows
+# def enum_windows():
+#     def callback(handle, data):
+#         tid, pid = win32process.GetWindowThreadProcessId(handle)
+#         windows.append({
+#           "title": win32gui.GetWindowText(handle),
+#           "class": win32gui.GetClassName(handle),
+#           "executable": os.path.basename(psutil.Process(pid).exe())
+#         })
+
+#     windows = []
+#     win32gui.EnumWindows(callback, None)
+#     return windows
+
 
 def match_window(executable, re_title):
     exec_lower = executable.lower()
-    print("Matching executable %s and window title: %s" % (executable, re_title))
-    for window in enum_windows():
-        if window["executable"].lower() == exec_lower and re.match(re_title, window["title"]) is not None:
+    print(
+        "Matching executable %s and window title: %s" % (executable, re_title)
+    )
+    for window in create_windowlist():
+        if (
+            window["executable"].lower() == exec_lower
+            and re.match(re_title, window["title"]) is not None
+        ):
             return window
 
     return None
+
 
 def on_event(event):
     global config_source_name, config_executable, config_window_match
@@ -79,20 +157,34 @@ def on_event(event):
         scene = obs.obs_scene_from_source(current_scene)
         scene_items = obs.obs_scene_enum_items(scene)
         for scene_item in scene_items:
-            cur_source =  obs.obs_sceneitem_get_source(scene_item)
-            if (obs.obs_source_get_unversioned_id(cur_source) == "window_capture" and
-                obs.obs_source_get_name(cur_source) == config_source_name):
-                print("Source matched: %s" % (obs.obs_source_get_name(cur_source)))
+            cur_source = obs.obs_sceneitem_get_source(scene_item)
+            if (
+                obs.obs_source_get_unversioned_id(cur_source)
+                == "window_capture"
+                and obs.obs_source_get_name(cur_source) == config_source_name
+            ):
+                print(
+                    "Source matched: %s"
+                    % (obs.obs_source_get_name(cur_source))
+                )
                 cur_settings = obs.obs_source_get_settings(cur_source)
-                new_window = match_window(config_executable, config_window_match)
-                if (new_window is not None):
-                    old_window_text = obs.obs_data_get_string(cur_settings, "window")
-                    new_window_text = "%s:%s:%s" % (new_window["title"],
-                                                    new_window["class"],
-                                                    new_window["executable"])
-                    if (old_window_text != new_window_text):
+                new_window = match_window(
+                    config_executable, config_window_match
+                )
+                if new_window is not None:
+                    old_window_text = obs.obs_data_get_string(
+                        cur_settings, "window"
+                    )
+                    new_window_text = "%s:%s:%s" % (
+                        new_window["title"],
+                        new_window["class"],
+                        new_window["executable"],
+                    )
+                    if old_window_text != new_window_text:
                         print("Update source window to %s" % (new_window_text))
-                        obs.obs_data_set_string(cur_settings, "window", new_window_text)
+                        obs.obs_data_set_string(
+                            cur_settings, "window", new_window_text
+                        )
                         obs.obs_source_update(cur_source, cur_settings)
 
                 obs.obs_data_release(cur_settings)
