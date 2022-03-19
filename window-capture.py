@@ -96,18 +96,6 @@ def capture_window():
     global config_source_name, config_executable, config_window_match
     print("*** Capturing Window ***")
 
-    def get_sources():
-        current_scene = obs.obs_frontend_get_current_scene()
-        scene = obs.obs_scene_from_source(current_scene)
-        scene_items = obs.obs_scene_enum_items(scene)
-
-        sources = [
-            obs.obs_sceneitem_get_source(scene_item)
-            for scene_item in scene_items
-        ]
-        obs.sceneitem_list_release(scene_items)
-        return sources
-
     def is_source_match(source) -> bool:
         return (
             obs.obs_source_get_unversioned_id(source)
@@ -115,26 +103,42 @@ def capture_window():
             and obs.obs_source_get_name(source) == config_source_name
         )
 
-    for cur_source in get_sources():
-        if is_source_match(cur_source):
-            print(f"Source matched: {obs.obs_source_get_name(cur_source)}")
-            cur_settings = obs.obs_source_get_settings(cur_source)
-            new_window = match_window(config_executable, config_window_match)
-            if new_window is not None:
-                print(f"Found window: {new_window.title}")
+    current_scene = obs.obs_frontend_get_current_scene()
+    scene = obs.obs_scene_from_source(current_scene)
+    scene_items = obs.obs_scene_enum_items(scene)
+    sources = [
+        obs.obs_sceneitem_get_source(scene_item) for scene_item in scene_items
+    ]
+    for source in sources:
+        if is_source_match(source):
+            print(f"Source matched: {obs.obs_source_get_name(source)}")
+            window = match_window(config_executable, config_window_match)
+            if window is not None:
+                print(f"Found new window: {window.title}")
+
+                cur_settings = obs.obs_source_get_settings(source)
+                import json
+                from pprint import pprint
+
+                jsonData = json.loads(obs.obs_data_get_json(cur_settings))
+                pprint(jsonData)
                 old_window_text: str = obs.obs_data_get_string(
                     cur_settings, "window"
                 )
+                new_window_text: str = f"{window.windowID}\r\n{window.title}\r\n{window.wmClass.name}"
                 # if old_window_text != new_window.title:
-                print(f"{old_window_text} -> {new_window.title}")
+                print(f"{old_window_text} -> {window.title}")
                 obs.obs_data_set_string(
-                    cur_settings, "window", new_window.title
+                    cur_settings, "capture_window", new_window_text
                 )
-                obs.obs_source_update(cur_source, cur_settings)
+                obs.obs_data_set_string(
+                    cur_settings, "window", new_window_text
+                )
+                print("Updating settings for source")
+                obs.obs_source_update(source, cur_settings)
                 obs.obs_data_release(cur_settings)
-                return
 
-            obs.obs_data_release(cur_settings)
+    obs.sceneitem_list_release(scene_items)
 
 
 def script_load(settings):

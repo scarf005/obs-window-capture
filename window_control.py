@@ -11,17 +11,28 @@ int16 = lambda x: int(x, 16)
 
 
 @dataclass
+class WMClass:
+    name: str
+    class_: str
+
+    @classmethod
+    def from_string(cls, s):
+        return cls(*s.split("."))
+
+
+@dataclass
 class Window:
-    id: int
+    windowID: int
     desktopNum: int
     pid: int
-    wm_class: str
+    wmClass: WMClass
     title: str
 
     def __post_init__(self):
-        self.id = int16(self.id)
+        self.windowID = int16(self.windowID)
         self.desktopNum = int(self.desktopNum)
         self.pid = int(self.pid)
+        self.wmClass = WMClass.from_string(self.wmClass)
 
     @property
     def executable_path(self) -> str:
@@ -41,8 +52,8 @@ class WindowList:
 
         def format_Window(w: Window) -> str:
             return (
-                f"{w.id:10} |{w.desktopNum:>3}  |{w.pid:>6} |"
-                f" {truncate(w.wm_class.split('.')[1]):<8} | {w.title}"
+                f"{w.windowID:10} |{w.desktopNum:>3}  |{w.pid:>6} |"
+                f" {w.wmClass.name:<8} | {w.title}"
             )
 
         return "Window ID  | Num |  PID  | WM_CLASS | Title\n" + "\n".join(
@@ -52,7 +63,10 @@ class WindowList:
 
 def create_windowlist() -> WindowList:
     def create_window(line: str) -> Window:
-        return Window(*re.split(r"\s+", line, maxsplit=4))
+        windowID, desktopNum, pid, wm_class, _, title = re.split(
+            r"\s+", line, maxsplit=5
+        )
+        return Window(windowID, desktopNum, pid, wm_class, title)
 
     capture = run(["wmctrl", "-l", "-p", "-u", "-x"], capture_output=True)
     lines = capture.stdout.decode().splitlines()
@@ -67,4 +81,5 @@ if __name__ == "__main__":
     print(window_list)
     for window in window_list:
         # print(window)
-        print(window.executable_path)
+        print(window.wmClass)
+        # print(window.executable_path)
