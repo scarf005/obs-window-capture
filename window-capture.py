@@ -1,64 +1,18 @@
-import os
 import re
 from dataclasses import dataclass
-from pathlib import Path
 from subprocess import PIPE, run
-from textwrap import shorten
+from sys import path
 from typing import List
 
 import obspython as obs
 
-int16 = lambda x: int(x, 16)
+from flupy import flu
 
+import window_control
 
-@dataclass
-class Window:
-    id: int
-    desktopNum: int
-    pid: int
-    wm_class: str
-    title: str
-
-    def __post_init__(self):
-        self.id = int16(self.id)
-        self.desktopNum = int(self.desktopNum)
-        self.pid = int(self.pid)
-
-
-@dataclass
-class WindowList:
-    _list: List[Window]
-
-    def __iter__(self):
-        return iter(self._list)
-
-    def __str__(self) -> str:
-        def truncate(column: str):
-            return column[:7] + "…" if len(column) > 8 else column
-
-        def format_Window(w: Window) -> str:
-            return (
-                f"{w.id:10} |{w.desktopNum:>3}  |{w.pid:>6} |"
-                f" {truncate(w.wm_class.split('.')[1]):<8} | {w.title}"
-            )
-
-        return "Window ID  | Num |  PID  | WM_CLASS | Title\n" + "\n".join(
-            [format_Window(w) for w in self._list]
-        )
-
-
-def create_windowlist() -> WindowList:
-    def create_window(line: str) -> Window:
-        return Window(*re.split(r"\s+", line, maxsplit=4))
-
-    capture = run(["wmctrl", "-l", "-p", "-u", "-x"], stdout=PIPE)
-    lines = capture.stdout.decode().splitlines()
-    return WindowList([create_window(line) for line in lines])
-
-
-# import win32gui
-# import win32process
-
+print(obs.__file__)
+print(dir(obs))
+# SwigPyObject
 # ------------------------------------------------------------
 
 
@@ -79,12 +33,12 @@ def script_properties():
         obs.OBS_COMBO_TYPE_LIST,
         obs.OBS_COMBO_FORMAT_STRING,
     )
-
     sources = obs.obs_enum_sources()
+    print(type(sources))
     if sources is not None:
         for source in sources:
             source_id = obs.obs_source_get_id(source)
-            if source_id == "window_capture":
+            if source_id == "xcomposite_input":
                 name = obs.obs_source_get_name(source)
                 obs.obs_property_list_add_string(p, name, name)
 
@@ -134,9 +88,7 @@ def script_update(settings):
 
 def match_window(executable, re_title):
     exec_lower = executable.lower()
-    print(
-        "Matching executable %s and window title: %s" % (executable, re_title)
-    )
+    print(f"Matching executable {executable} and window title: {re_title}")
     for window in create_windowlist():
         if (
             window["executable"].lower() == exec_lower
@@ -163,10 +115,7 @@ def on_event(event):
                 == "window_capture"
                 and obs.obs_source_get_name(cur_source) == config_source_name
             ):
-                print(
-                    "Source matched: %s"
-                    % (obs.obs_source_get_name(cur_source))
-                )
+                print(f"Source matched: {obs.obs_source_get_name(cur_source)}")
                 cur_settings = obs.obs_source_get_settings(cur_source)
                 new_window = match_window(
                     config_executable, config_window_match
@@ -181,7 +130,7 @@ def on_event(event):
                         new_window["executable"],
                     )
                     if old_window_text != new_window_text:
-                        print("Update source window to %s" % (new_window_text))
+                        print(f"Update source window to {new_window_text}")
                         obs.obs_data_set_string(
                             cur_settings, "window", new_window_text
                         )
@@ -193,5 +142,8 @@ def on_event(event):
 
 
 def script_load(settings):
+    import sys
+
+    print(f"version: {sys.version}")
     print("Script loaded")
     obs.obs_frontend_add_event_callback(on_event)

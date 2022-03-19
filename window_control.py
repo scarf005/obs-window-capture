@@ -1,23 +1,25 @@
 import re
 from dataclasses import dataclass
+from os import system
 from pathlib import Path
-from subprocess import PIPE, run
-from textwrap import shorten
+from subprocess import run
 from typing import List
-
-import attr
-from pyparsing import col
 
 int16 = lambda x: int(x, 16)
 
 
 @dataclass
 class Window:
-    id: int = attr.field(converter=int16)
-    desktopNum: int = attr.field(converter=int)
-    pid: int = attr.field(converter=int)
-    wm_class: str = attr.field()
-    title: str = attr.field()
+    id: int
+    desktopNum: int
+    pid: int
+    wm_class: str
+    title: str
+
+    def __post_init__(self):
+        self.id = int16(self.id)
+        self.desktopNum = int(self.desktopNum)
+        self.pid = int(self.pid)
 
 
 @dataclass
@@ -46,7 +48,7 @@ def create_windowlist() -> WindowList:
     def create_window(line: str) -> Window:
         return Window(*re.split(r"\s+", line, maxsplit=4))
 
-    capture = run(["wmctrl", "-l", "-p", "-u", "-x"], stdout=PIPE)
+    capture = run(["wmctrl", "-l", "-p", "-u", "-x"], capture_output=True)
     lines = capture.stdout.decode().splitlines()
     return WindowList([create_window(line) for line in lines])
 
