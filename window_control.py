@@ -16,23 +16,21 @@ class WMClass:
     class_: str
 
     @classmethod
-    def from_string(cls, s):
-        return cls(*s.split("."))
+    def from_string(cls, s: str):
+        arr = s.split(".")
+        if len(arr) != 2:
+            return cls(s, s)
+        else:
+            return cls(*arr)
 
 
-@dataclass
 class Window:
-    windowID: int
-    desktopNum: int
-    pid: int
-    wmClass: WMClass
-    title: str
-
-    def __post_init__(self):
-        self.windowID = int16(self.windowID)
-        self.desktopNum = int(self.desktopNum)
-        self.pid = int(self.pid)
-        self.wmClass = WMClass.from_string(self.wmClass)
+    def __init__(self, raw_windowID: str, raw_desktopNum: str, raw_pid: str, raw_wmClass: str, title: str):
+        self.windowID = int16(raw_windowID)
+        self.desktopNum = int(raw_desktopNum)
+        self.pid = int(raw_pid)
+        self.wmClass = WMClass.from_string(raw_wmClass)
+        self.title = title
 
     @property
     def executable_path(self) -> str:

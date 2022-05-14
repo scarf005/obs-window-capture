@@ -88,8 +88,8 @@ def match_window(executable: str, re_title: str):
 
 
 def on_event(event):
-    if event == obs.OBS_FRONTEND_EVENT_SCENE_CHANGED:
-        capture_window()
+    #if event == obs.OBS_FRONTEND_EVENT_SCENE_CHANGED:
+    capture_window()
 
 
 def capture_window():
@@ -121,7 +121,7 @@ def capture_window():
                 from pprint import pprint
 
                 jsonData = json.loads(obs.obs_data_get_json(cur_settings))
-                pprint(jsonData)
+                #pprint(jsonData)
                 old_window_text: str = obs.obs_data_get_string(
                     cur_settings, "window"
                 )
@@ -142,5 +142,6 @@ def capture_window():
 
 
 def script_load(settings):
-    print("Script loaded")
+    print("Window Capture Script loaded")
     obs.obs_frontend_add_event_callback(on_event)
+    capture_window()
