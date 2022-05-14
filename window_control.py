@@ -25,7 +25,14 @@ class WMClass:
 
 
 class Window:
-    def __init__(self, raw_windowID: str, raw_desktopNum: str, raw_pid: str, raw_wmClass: str, title: str):
+    def __init__(
+        self,
+        raw_windowID: str,
+        raw_desktopNum: str,
+        raw_pid: str,
+        raw_wmClass: str,
+        title: str,
+    ):
         self.windowID = int16(raw_windowID)
         self.desktopNum = int(raw_desktopNum)
         self.pid = int(raw_pid)
@@ -36,6 +43,12 @@ class Window:
     def executable_path(self) -> str:
         return psutil.Process(self.pid).exe()
 
+    def __repr__(self) -> str:
+        return (
+            f"{self.windowID:10} |{self.desktopNum:>3}  |{self.pid:>6} |"
+            f" {self.wmClass.name:<13} | {self.title}"
+        )
+
 
 @dataclass
 class WindowList:
@@ -45,17 +58,9 @@ class WindowList:
         return iter(self._list)
 
     def __str__(self) -> str:
-        def truncate(column: str):
-            return column[:7] + "…" if len(column) > 8 else column
-
-        def format_Window(w: Window) -> str:
-            return (
-                f"{w.windowID:10} |{w.desktopNum:>3}  |{w.pid:>6} |"
-                f" {w.wmClass.name:<8} | {w.title}"
-            )
-
-        return "Window ID  | Num |  PID  | WM_CLASS | Title\n" + "\n".join(
-            [format_Window(w) for w in self._list]
+        return (
+            "Window ID  | Num |  PID  | WM_CLASS      | Title\n"
+            + "\n".join([str(w) for w in self._list])
         )
 
 
