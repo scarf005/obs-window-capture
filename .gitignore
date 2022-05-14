@@ -1,3 +1,8 @@
+!window_capture.py
+!window_control.py
+chatding/
+twitch-chat-irc/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
