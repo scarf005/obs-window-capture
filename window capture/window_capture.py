@@ -1,15 +1,12 @@
+# type: ignore
 import re
-from dataclasses import dataclass
-from subprocess import PIPE, run
+from pathlib import Path
 from sys import path
-from typing import List
 
-import obspython as obs
+import obspython as obs  # type: ignore
 
-path.append("/home/scarf/Repo/obs_script")
+# path.append("/home/scarf/Repo/obs_script")
 import window_control
-
-# ------------------------------------------------------------
 
 WINDOW_CAPTURE_XCOMPOSITE = "xcomposite_input"
 
@@ -43,13 +40,13 @@ def script_properties():
     obs.obs_properties_add_text(
         props,
         "executable",
-        "Executable to Match (e.g. whatsapp.exe)",
+        "Executable pattern (e.g. /usr/bin/code)",
         obs.OBS_TEXT_DEFAULT,
     )
     obs.obs_properties_add_text(
         props,
         "window_match",
-        "Regex for Title to Match (e.g. .*video call",
+        "Regex for Title to Match (e.g. .* Studio Code",
         obs.OBS_TEXT_DEFAULT,
     )
     obs.obs_properties_add_button(props, "button", "Refresh", on_press_button)
@@ -75,9 +72,9 @@ def script_update(settings):
 
 def match_window(executable: str, re_title: str):
     def is_match(window: window_control.Window):
-        print(f"{window.executable_path = }")
+        # print(window.executable_path)
         return (
-            window.executable_path.lower() == executable.lower()
+            Path(window.executable_path.lower()).match(executable.lower())
             and re.search(re_title, window.title) is not None
         )
 

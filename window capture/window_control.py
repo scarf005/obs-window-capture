@@ -1,13 +1,13 @@
 import re
 from dataclasses import dataclass
-from os import system
-from pathlib import Path
 from subprocess import run
 from typing import List
 
 import psutil
 
-int16 = lambda x: int(x, 16)
+
+def int16(n: str) -> int:
+    return int(n, 16)
 
 
 @dataclass
@@ -41,7 +41,10 @@ class Window:
 
     @property
     def executable_path(self) -> str:
-        return psutil.Process(self.pid).exe()
+        try:
+            return psutil.Process(self.pid).exe()
+        except (PermissionError, psutil.AccessDenied) as e:
+            return f"(Not accessible: {e})"
 
     def __repr__(self) -> str:
         return (
@@ -57,10 +60,23 @@ class WindowList:
     def __iter__(self):
         return iter(self._list)
 
-    def __str__(self) -> str:
+    def detailed(self) -> str:
         return (
             "Window ID  | Num |  PID  | WM_CLASS      | Title\n"
-            + "\n".join([str(w) for w in self._list])
+            + "\n".join(str(w) for w in self._list)
+        )
+
+    def __str__(self) -> str:
+        title_len = max(len(w.title) for w in self._list) + 1
+        executable_len = max(len(w.executable_path) for w in self._list) + 1
+
+        return (
+            f"{'Executable Path':<{executable_len}}|{'Title':<{title_len}}\n"
+            f"{'-' * executable_len}+{'-' * title_len}\n"
+            + "\n".join(
+                f"{w.executable_path:<{executable_len}}|{w.title:<{title_len}}"
+                for w in self._list
+            )
         )
 
 
