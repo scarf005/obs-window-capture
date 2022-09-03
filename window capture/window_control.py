@@ -1,6 +1,7 @@
 import re
 from dataclasses import dataclass
 from subprocess import run
+from textwrap import shorten
 from typing import List
 
 import psutil
@@ -43,7 +44,11 @@ class Window:
     def executable_path(self) -> str:
         try:
             return psutil.Process(self.pid).exe()
-        except (PermissionError, psutil.AccessDenied) as e:
+        except (
+            PermissionError,
+            psutil.AccessDenied,
+            psutil.NoSuchProcess,
+        ) as e:
             return f"(Not accessible: {e})"
 
     def __repr__(self) -> str:
@@ -67,14 +72,13 @@ class WindowList:
         )
 
     def __str__(self) -> str:
-        title_len = max(len(w.title) for w in self._list) + 1
         executable_len = max(len(w.executable_path) for w in self._list) + 1
 
         return (
-            f"{'Executable Path':<{executable_len}}|{'Title':<{title_len}}\n"
-            f"{'-' * executable_len}+{'-' * title_len}\n"
+            f"{'Executable Path':<{executable_len}}|Title\n"
+            f"{'-' * executable_len}+{'-' * 60}\n"
             + "\n".join(
-                f"{w.executable_path:<{executable_len}}|{w.title:<{title_len}}"
+                f"{w.executable_path:<{executable_len}}|{shorten(w.title, 60)}"
                 for w in self._list
             )
         )

@@ -5,7 +5,6 @@ from sys import path
 
 import obspython as obs  # type: ignore
 
-# path.append("/home/scarf/Repo/obs_script")
 import window_control
 
 WINDOW_CAPTURE_XCOMPOSITE = "xcomposite_input"
